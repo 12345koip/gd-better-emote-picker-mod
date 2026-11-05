@@ -1,0 +1,17 @@
+{
+	"geode": "6.0.0-alpha.1",
+	"gd": {
+		"win": "2.2091",
+		"android": "2.2091",
+		"mac": "2.2091",
+		"ios": "2.2091"
+	},
+	"id": "kx_.better-emote-picker",
+	"name": "Better Emote Picker",
+	"version": "v1.0.0",
+	"developer": "kx_",
+	"description": "Improves the built-in emote picker popup",
+	"dependencies": {
+        "geode.node-ids": ">=1.23.3"
+    }
+}
