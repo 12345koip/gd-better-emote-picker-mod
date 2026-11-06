@@ -5,7 +5,6 @@ using namespace BetterEmotePicker;
 
 std::vector<int> Search::GetMatchingEmoteIndicesForSearchQuery(const std::string_view searchQuery) {
     if (searchQuery.empty()) return {}; //no point populating it if it's not going to be used.
-
     std::vector<int> out {};
 
     for (const auto& [tag, matchingIndices]: g_emoteTagsMap) {

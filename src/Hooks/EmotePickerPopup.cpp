@@ -13,6 +13,7 @@ constexpr uint8_t kCellSeparateFactor = 26.0f;
 constexpr float kRecentsSeparateFactor = 38.0f;
 constexpr float kWindowWidthPad = 8.0f;
 
+//genuinely the best way i could come up with to do this
 void placeEmoteCell(CCNode* node, int numCols, float xPad, float& y, int& col, int& placedInSection) {
     if (col == numCols) {
         y -= kCellSeparateFactor;
@@ -62,7 +63,7 @@ class $modify(EmotePickerPopup) {
         searchBar->setID("search-bar"_spr);
         searchBar->setScale(0.75f);
         searchBar->setCallback([this](const std::string& input) -> void {
-            this->m_fields->searchQuery = input;
+            this->m_fields->searchQuery = geode::utils::string::toLower(input);
             this->layoutEmoteGrid();
         });
 
@@ -92,7 +93,6 @@ class $modify(EmotePickerPopup) {
         if (!isSearching) { //no search = show recents
             uint32_t placedRecents = 0;
             for (auto* cell: this->m_recentEmoteButtons) {
-                int index = cell->getTag() - kRecentEmoteTagGap;
                 placeEmoteCell(cell, numColsPerRow, xPad, currentYPos, col, numPlacedInSection);
                 ++placedRecents;
             }
@@ -128,7 +128,7 @@ class $modify(EmotePickerPopup) {
             auto cell = this->m_scrollContentMenu->getChildByTag(i);
             if (!cell) continue;
 
-            if (isSearching && std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end()) {
+            if (isSearching && (std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end() && searchQuery.find(def->m_name) == std::string::npos)) {
                 cell->setVisible(false);
                 continue;
             }
