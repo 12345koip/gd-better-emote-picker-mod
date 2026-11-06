@@ -1,8 +1,10 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/EditorWindowPopup.hpp>
 #include <Geode/modify/EmotePickerPopup.hpp>
+#include "../Search/Search.hpp"
 
 using namespace geode::prelude;
+using namespace BetterEmotePicker::Search;
 
 constexpr int kSearchBarTouchPriority = -501;
 constexpr int kRecentEmoteTagGap = 100000;
@@ -11,19 +13,13 @@ constexpr uint8_t kCellSeparateFactor = 26.0f;
 constexpr float kRecentsSeparateFactor = 38.0f;
 constexpr float kWindowWidthPad = 8.0f;
 
-
-bool matchesEmote(const EmoteDef* def, const std::string_view query) { //TODO: give emotes tags and compare them here
-    return query.empty() || geode::utils::string::toLower(def->m_name).find(query) != std::string::npos;
-}
-
 void placeEmoteCell(CCNode* node, int numCols, float xPad, float& y, int& col, int& placedInSection) {
-    if (col >= numCols) {
+    if (col == numCols) {
         y -= kCellSeparateFactor;
         col = 0;
     }
 
     node->setVisible(true);
-    static_cast<CCMenuItem*>(node)->setEnabled(true);
     node->setPosition({
         xPad + (col + 0.5f) * kCellSeparateFactor,
         y - (kCellSeparateFactor / 2.0f)
@@ -35,13 +31,12 @@ void placeEmoteCell(CCNode* node, int numCols, float xPad, float& y, int& col, i
 
 class $modify(EmotePickerPopup) {
     struct Fields {
-        std::string query;
+        std::string searchQuery;
     };
 
     bool init(CCTextInputNode* input, CCPoint position, int maxEmotes, int maxLength) {
         if (!EmotePickerPopup::init(input, position, maxEmotes, maxLength))
             return false;
-
 
         //replace bg bc it looks nicer
         auto oldBg = this->m_background;
@@ -55,21 +50,19 @@ class $modify(EmotePickerPopup) {
         oldBg->removeFromParent();
         this->m_background = newBg;
 
-
-
+        //close button
         auto cache = CCSpriteFrameCache::sharedSpriteFrameCache();
         if (auto frame = cache->spriteFrameByName("GJ_closeBtn_001.png")) {
             this->m_closeSprite->setDisplayFrame(frame);
             this->m_closeSprite->setScale(0.7f);
         }
 
-
-
+        //search bar
         auto searchBar = TextInput::create(this->m_windowWidth - 35.0f, "Search...");
         searchBar->setID("search-bar"_spr);
         searchBar->setScale(0.75f);
         searchBar->setCallback([this](const std::string& input) -> void {
-            this->m_fields->query = input;
+            this->m_fields->searchQuery = input;
             this->layoutEmoteGrid();
         });
 
@@ -86,61 +79,63 @@ class $modify(EmotePickerPopup) {
     //this is basically a reimplementation of whats in the binary except we filter based on the query
     //warning: ugly (sorry)
     void layoutEmoteGrid() {
-        const auto& query = this->m_fields->query;
-
-        int numCols = std::max(3.0f, (this->m_windowWidth - kWindowWidthPad) / kCellSeparateFactor);
-        float xPad = (this->m_windowWidth - numCols * kCellSeparateFactor) * 0.5f;
-        float y = -4.0f;
+        const int numColsPerRow = std::max(3.0f, (this->m_windowWidth - kWindowWidthPad) / kCellSeparateFactor);
+        const float xPad = (this->m_windowWidth - numColsPerRow * kCellSeparateFactor) * 0.5f;
+        float currentYPos = -4.0f;
         int col = 0;
-        int placedInSection = 0;
+        int numPlacedInSection = 0;
 
-        //recents first (tag of +100000, why??)
-        int placedRecents = 0;
-        for (auto cell: this->m_recentEmoteButtons) {
-            auto def = EmoteSprite::defAtIndex(cell->getTag() - kRecentEmoteTagGap);
+        const auto& searchQuery = this->m_fields->searchQuery;
+        const bool isSearching = !searchQuery.empty();
+        const auto matchingIndices = GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-            if (!def || !matchesEmote(def, query)) {
-                cell->setVisible(false);
-                continue;
+        if (!isSearching) { //no search = show recents
+            uint32_t placedRecents = 0;
+            for (auto* cell: this->m_recentEmoteButtons) {
+                int index = cell->getTag() - kRecentEmoteTagGap;
+                placeEmoteCell(cell, numColsPerRow, xPad, currentYPos, col, numPlacedInSection);
+                ++placedRecents;
             }
 
-            placeEmoteCell(cell, numCols, xPad, y, col, placedInSection);
-            ++placedRecents;
+            if (!this->m_recentEmoteButtons.empty()) {
+                currentYPos -= kRecentsSeparateFactor;
+                col = 0;
+            }
+        } else {
+            for (auto* cell: this->m_recentEmoteButtons)
+                cell->setVisible(false);
         }
 
-        if (placedRecents != 0) {
-            y -= kRecentsSeparateFactor;
-            col = 0;
-        }
-
-        //now do the rest!
-        placedInSection = 0;
-        for (int i = 0, n = EmoteSprite::defCount(); i < n && i < kTotalEmoteTableEntries; ++i) {
+        //now we place the ones which match the query.
+        numPlacedInSection = 0;
+        const auto numEntries = EmoteSprite::defCount();
+        for (int i = 0; i < numEntries; ++i) {
             auto def = EmoteSprite::defAtIndex(i);
 
-            if (!def || !def->m_name) { //section separator.
-                if (placedInSection == 0) continue;
+            if (!def->m_name) {
+                if (numPlacedInSection == 0) continue;
 
-                if (col > 0) y -= kCellSeparateFactor;
-                y -= (kCellSeparateFactor / 2.0f);
+                if (col > 0)
+                    currentYPos -= kCellSeparateFactor;
+
+                currentYPos -= kCellSeparateFactor / 2.0f;
                 col = 0;
-                placedInSection = 0;
+                numPlacedInSection = 0;
                 continue;
             }
-
             if (def->m_isAlias) continue;
+
             auto cell = this->m_scrollContentMenu->getChildByTag(i);
             if (!cell) continue;
 
-            if (!matchesEmote(def, query)) {
+            if (isSearching && std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end()) {
                 cell->setVisible(false);
                 continue;
             }
 
-            placeEmoteCell(cell, numCols, xPad, y, col, placedInSection);
+            placeEmoteCell(cell, numColsPerRow, xPad, currentYPos, col, numPlacedInSection);
         }
 
-        if (col > 0) y -= kCellSeparateFactor;
-        this->m_scrollContentLayer->setContentHeight(5.0f - y);
+        this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
     }
 };
