@@ -4,40 +4,55 @@
 #include "../Search/Search.hpp"
 
 using namespace geode::prelude;
-using namespace BetterEmotePicker::Search;
 
-constexpr int kSearchBarTouchPriority = -501;
-constexpr int kRecentEmoteTagGap = 100000;
-constexpr uint32_t kTotalEmoteTableEntries = 262;
-constexpr uint8_t kCellSeparateFactor = 26.0f;
-constexpr float kRecentsSeparateFactor = 38.0f;
-constexpr float kWindowWidthPad = 8.0f;
+constexpr float kCellRowSeparatorGap = 26.0f;
+constexpr float kEmoteSectionsGap = 12.0f;
+constexpr int kMaxNumCols = 8;
+constexpr float kFirstCellX = 21.0f;
 
 //genuinely the best way i could come up with to do this
-void placeEmoteCell(CCNode* node, int numCols, float xPad, float& y, int& col, int& placedInSection) {
-    if (col == numCols) {
-        y -= kCellSeparateFactor;
+static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
+    if (col == kMaxNumCols) {
+        y -= kCellRowSeparatorGap;
         col = 0;
     }
 
     node->setVisible(true);
-    node->setPosition({
-        xPad + (col + 0.5f) * kCellSeparateFactor,
-        y - (kCellSeparateFactor / 2.0f)
-    });
+    node->setPosition({kFirstCellX + (col * kCellRowSeparatorGap), y - (kCellRowSeparatorGap / 2)});
 
     ++col;
     ++placedInSection;
 }
 
+static void endSection(float& y, const int col, const int numPlacedInSection) {
+    if (numPlacedInSection == 0) return;
+
+    if (col > 0)
+        y -= kCellRowSeparatorGap;
+
+    y -= kEmoteSectionsGap;
+}
+
 class $modify(EmotePickerPopup) {
     struct Fields {
         std::string searchQuery;
+        geode::Label* noSearchResultsLabel = nullptr;
     };
 
     bool init(CCTextInputNode* input, CCPoint position, int maxEmotes, int maxLength) {
         if (!EmotePickerPopup::init(input, position, maxEmotes, maxLength))
             return false;
+
+
+        auto* noSearchResultsLabel = geode::Label::create("No results :(", "bigFont.fnt");
+        noSearchResultsLabel->setScale(0.55f);
+        noSearchResultsLabel->setOpacity(200);
+        noSearchResultsLabel->setPosition(this->m_background->getPosition());
+        noSearchResultsLabel->setVisible(false);
+        noSearchResultsLabel->setID("no-search-results-label"_spr);
+        this->m_fields->noSearchResultsLabel = noSearchResultsLabel;
+        this->m_mainLayer->addChild(noSearchResultsLabel);
+
 
         //replace bg bc it looks nicer
         auto oldBg = this->m_background;
@@ -69,7 +84,7 @@ class $modify(EmotePickerPopup) {
 
         //I know ZOrder is how touch prio is meant to work in v6. But... surprise surprise!! it doesn't. Only this does. Why? No clue!
         auto searchBarNode = searchBar->getChildByType<CCTextInputNode>(0);
-        CCDirector::get()->getTouchDispatcher()->addTargetedDelegate(searchBarNode, kSearchBarTouchPriority, true);
+        CCDirector::get()->getTouchDispatcher()->addTargetedDelegate(searchBarNode, -501, true);
 
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
         this->applyWindowSize();
@@ -80,62 +95,65 @@ class $modify(EmotePickerPopup) {
     //this is basically a reimplementation of whats in the binary except we filter based on the query
     //warning: ugly (sorry)
     void layoutEmoteGrid() {
-        const int numColsPerRow = std::max(3.0f, (this->m_windowWidth - kWindowWidthPad) / kCellSeparateFactor);
-        const float xPad = (this->m_windowWidth - numColsPerRow * kCellSeparateFactor) * 0.5f;
         float currentYPos = -4.0f;
         int col = 0;
         int numPlacedInSection = 0;
+        uint32_t totalPlaced = 0;
 
         const auto& searchQuery = this->m_fields->searchQuery;
         const bool isSearching = !searchQuery.empty();
-        const auto matchingIndices = GetMatchingEmoteIndicesForSearchQuery(searchQuery);
+        const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-        if (!isSearching) { //no search = show recents
-            uint32_t placedRecents = 0;
+        if (!isSearching && !this->m_recentEmoteButtons.empty()) { //no search = show recents
             for (auto* cell: this->m_recentEmoteButtons) {
-                placeEmoteCell(cell, numColsPerRow, xPad, currentYPos, col, numPlacedInSection);
-                ++placedRecents;
+                placeEmoteCell(cell, currentYPos, col, numPlacedInSection);
+                ++totalPlaced;
             }
 
-            if (!this->m_recentEmoteButtons.empty()) {
-                currentYPos -= kRecentsSeparateFactor;
-                col = 0;
-            }
+            currentYPos -= (kCellRowSeparatorGap + kEmoteSectionsGap);
+            col = 0;
+            numPlacedInSection = 0;
         } else {
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
         }
 
         //now we place the ones which match the query.
-        numPlacedInSection = 0;
-        const auto numEntries = EmoteSprite::defCount();
-        for (int i = 0; i < numEntries; ++i) {
+        for (int i = 0; i < EmoteSprite::defCount(); ++i) {
             auto def = EmoteSprite::defAtIndex(i);
+            if (def->m_isAlias) continue;
 
-            if (!def->m_name) {
-                if (numPlacedInSection == 0) continue;
-
-                if (col > 0)
-                    currentYPos -= kCellSeparateFactor;
-
-                currentYPos -= kCellSeparateFactor / 2.0f;
+            if (!def->m_name) { //a section terminator.
+                endSection(currentYPos, col, numPlacedInSection);
                 col = 0;
                 numPlacedInSection = 0;
                 continue;
             }
-            if (def->m_isAlias) continue;
 
             auto cell = this->m_scrollContentMenu->getChildByTag(i);
             if (!cell) continue;
 
-            if (isSearching && (std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end() && searchQuery.find(def->m_name) == std::string::npos)) {
+            const std::string_view name = def->m_name;
+            if (isSearching && (std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end() && name.find(searchQuery) == std::string::npos))
                 cell->setVisible(false);
-                continue;
+            else {
+                placeEmoteCell(cell, currentYPos, col, numPlacedInSection);
+                ++totalPlaced;
             }
-
-            placeEmoteCell(cell, numColsPerRow, xPad, currentYPos, col, numPlacedInSection);
         }
 
+        if (auto label = this->m_fields->noSearchResultsLabel)
+            label->setVisible(totalPlaced == 0);
         this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
+    }
+
+    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override { //drag anywhere except in the scroller
+        if (!this->m_isEmotePicker)
+            return EmotePickerPopup::ccTouchBegan(touch, event);
+
+        auto touchPoint = this->m_scrollContentLayer->convertToNodeSpace(touch->getLocation());
+        CCRect touchArea {0.0f, 0.0f, this->m_scrollContentLayer->getContentWidth(), this->m_scrollContentLayer->getContentHeight()};
+        this->m_allowDraggingAnywhere = !touchArea.containsPoint(touchPoint);
+        return EmotePickerPopup::ccTouchBegan(touch, event);
     }
 };

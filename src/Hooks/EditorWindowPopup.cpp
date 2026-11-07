@@ -3,6 +3,17 @@
 
 using namespace geode::prelude;
 
+static void placeSearchBar(const EditorWindowPopup* popup) {
+    auto bar = popup->m_mainLayer->getChildByID("search-bar"_spr);
+    if (!bar) return;
+
+    const auto centre = popup->m_background->getPosition();
+    bar->setPosition({
+        centre.x - 33.0f,
+        centre.y + (popup->m_windowHeight / 2) - 20.0f
+    });
+}
+
 class $modify(EditorWindowPopup) {
     void layoutWindow() {
         EditorWindowPopup::layoutWindow();
@@ -22,17 +33,6 @@ class $modify(EditorWindowPopup) {
             this->m_windowHeight - 34.0f
         });
         typeinfo_cast<EmotePickerPopup*>(this)->layoutEmoteGrid(); //dont ask its the only thing that worked
-        this->placeSearchBar();
-    }
-
-    void placeSearchBar() {
-        auto bar = this->m_mainLayer->getChildByID("search-bar"_spr);
-        if (!bar) return;
-
-        const auto centre = this->m_background->getPosition();
-        bar->setPosition({
-            centre.x - 33.0f,
-            centre.y + (this->m_windowHeight / 2) - 20.0f
-        });
+        placeSearchBar(this);
     }
 };
