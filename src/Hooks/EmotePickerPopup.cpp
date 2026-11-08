@@ -9,6 +9,8 @@ constexpr float kCellRowSeparatorGap = 26.0f;
 constexpr float kEmoteSectionsGap = 12.0f;
 constexpr int kMaxNumCols = 8;
 constexpr float kFirstCellX = 21.0f;
+constexpr std::array<const char*, 8> kSectionHeaders = {"Recents", "Ratings", "Faces", "Hands & Gestures", "Speech bubbles", "Game objects", "Reactions & Symbols", "Boomlings"};
+constexpr std::array<float, 8> kSectionOffsetsFromTop = {-6.0f, -68.0f, -158.0f, -429.0f, -489.0f, -560.0f, -702.0f, -818.0f};
 
 //genuinely the best way i could come up with to do this
 static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
@@ -37,13 +39,29 @@ class $modify(EmotePickerPopup) {
     struct Fields {
         std::string searchQuery;
         geode::Label* noSearchResultsLabel = nullptr;
+        std::array<geode::Label*, 8> sectionTitles {};
+        bool isInited = false; //base call in init calls layoutEmoteGrid, so we gotta block it
     };
 
     bool init(CCTextInputNode* input, CCPoint position, int maxEmotes, int maxLength) {
         if (!EmotePickerPopup::init(input, position, maxEmotes, maxLength))
             return false;
 
+        //section headers
+        uint32_t i = 0;
+        for (const auto* header: kSectionHeaders) {
+            auto label = geode::Label::create(header, "goldFont.fnt");
+            label->setScale(0.35f);
+            label->setAnchorPoint({0.0f, 0.5f});
+            label->setVisible(false);
+            label->setPosition({8.0f, kSectionOffsetsFromTop[i]});
+            label->setID(fmt::format("{}-header"_spr, header));
+            this->m_scrollContentMenu->addChild(label);
 
+            this->m_fields->sectionTitles[i++] = label;
+        }
+
+        //label for no search results
         auto* noSearchResultsLabel = geode::Label::create("No results :(", "bigFont.fnt");
         noSearchResultsLabel->setScale(0.55f);
         noSearchResultsLabel->setOpacity(200);
@@ -89,6 +107,8 @@ class $modify(EmotePickerPopup) {
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
         this->applyWindowSize();
 
+        this->m_fields->isInited = true;
+
         return true;
     }
 
@@ -104,6 +124,14 @@ class $modify(EmotePickerPopup) {
         const bool isSearching = !searchQuery.empty();
         const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
+        if (!isSearching) currentYPos -= 6.0f; //space for recents label.
+
+        //all the section headers first
+        //note to self: do not remove if statement. EmotePickerPopup::init calls layoutEmoteGrid
+        for (auto* label: this->m_fields->sectionTitles)
+            if (label) label->setVisible(!isSearching);
+
+
         if (!isSearching && !this->m_recentEmoteButtons.empty()) { //no search = show recents
             for (auto* cell: this->m_recentEmoteButtons) {
                 placeEmoteCell(cell, currentYPos, col, numPlacedInSection);
@@ -113,6 +141,9 @@ class $modify(EmotePickerPopup) {
             currentYPos -= (kCellRowSeparatorGap + kEmoteSectionsGap);
             col = 0;
             numPlacedInSection = 0;
+
+            if (totalPlaced == 0) //still leave a gap even if no recents.
+                currentYPos -= kEmoteSectionsGap;
         } else {
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
@@ -145,6 +176,24 @@ class $modify(EmotePickerPopup) {
         if (auto label = this->m_fields->noSearchResultsLabel)
             label->setVisible(totalPlaced == 0);
         this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
+    }
+
+    //reimplementation of what's in the binary except we typecheck in the iteration
+    //to avoid the crash from the blind virtual call :p
+    void refreshEnabled() {
+        if (!this->m_scrollContentMenu) return;
+
+        bool newCanAdd = this->canAddEmote();
+        if (newCanAdd == this->m_canAdd) return;
+        this->m_canAdd = newCanAdd;
+
+        for (auto* child: this->m_scrollContentMenu->getChildrenExt<CCNode>()) {
+            auto emoteCell = typeinfo_cast<CCMenuItemSpriteExtra*>(child);
+            if (!emoteCell) continue;
+
+            emoteCell->setEnabled(newCanAdd);
+            emoteCell->setOpacity(newCanAdd? 255: 90);
+        }
     }
 
     bool ccTouchBegan(CCTouch* touch, CCEvent* event) override { //drag anywhere except in the scroller
