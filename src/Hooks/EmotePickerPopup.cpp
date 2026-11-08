@@ -5,10 +5,18 @@
 
 using namespace geode::prelude;
 
-//if it's not obvious, these two are ordered the same
-//so "Recents" offset is -6.0f
-constexpr std::array<const char*, 8> kSectionHeaders = {"Recents", "Ratings", "Faces", "Hands & Gestures", "Speech bubbles", "Game objects", "Reactions & Symbols", "Boomlings"};
-constexpr std::array<float, 8> kSectionOffsetsFromTop = {6.0f, 68.0f, 158.0f, 430.0f, 495.0f, 560.0f, 701.0f, 817.0f};
+//header against offset from top.
+const std::unordered_map<const char*, float> kHeaderInformation {
+    {"Recents", 6.0f},
+    {"Ratings", 68.0f},
+    {"Faces", 158.0f},
+    {"Hands & Gestures", 430.0f},
+    {"Speech bubbles", 495.0f},
+    {"Game objects", 560.0f},
+    {"Reactions & Symbols", 701.0f},
+    {"Boomlings", 817.0f}
+};
+
 
 //genuinely the best way i could come up with to do this
 static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
@@ -47,12 +55,12 @@ class $modify(EmotePickerPopup) {
 
         //section headers
         uint32_t i = 0;
-        for (const auto* header: kSectionHeaders) {
+        for (const auto [header, offset]: kHeaderInformation) {
             auto label = geode::Label::create(header, "goldFont.fnt");
             label->setScale(0.35f);
             label->setAnchorPoint({0.0f, 0.5f});
             label->setVisible(false);
-            label->setPosition({8.0f, -kSectionOffsetsFromTop[i]});
+            label->setPosition({8.0f, -offset});
             label->setID(fmt::format("{}-header"_spr, header));
             this->m_scrollContentMenu->addChild(label);
 
