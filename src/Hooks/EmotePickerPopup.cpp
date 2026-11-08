@@ -5,22 +5,20 @@
 
 using namespace geode::prelude;
 
-constexpr float kCellRowSeparatorGap = 26.0f;
-constexpr float kEmoteSectionsGap = 12.0f;
-constexpr int kMaxNumCols = 8;
-constexpr float kFirstCellX = 21.0f;
+//if it's not obvious, these two are ordered the same
+//so "Recents" offset is -6.0f
 constexpr std::array<const char*, 8> kSectionHeaders = {"Recents", "Ratings", "Faces", "Hands & Gestures", "Speech bubbles", "Game objects", "Reactions & Symbols", "Boomlings"};
-constexpr std::array<float, 8> kSectionOffsetsFromTop = {-6.0f, -68.0f, -158.0f, -429.0f, -489.0f, -560.0f, -702.0f, -818.0f};
+constexpr std::array<float, 8> kSectionOffsetsFromTop = {6.0f, 68.0f, 158.0f, 429.0f, 489.0f, 560.0f, 702.0f, 818.0f};
 
 //genuinely the best way i could come up with to do this
 static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
-    if (col == kMaxNumCols) {
-        y -= kCellRowSeparatorGap;
+    if (col == 8) { //max columns, make new line
+        y -= 26.0f;
         col = 0;
     }
 
     node->setVisible(true);
-    node->setPosition({kFirstCellX + (col * kCellRowSeparatorGap), y - (kCellRowSeparatorGap / 2)});
+    node->setPosition({21.0f + (26.0f * col), y - 13.0f});
 
     ++col;
     ++placedInSection;
@@ -29,10 +27,10 @@ static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSectio
 static void endSection(float& y, const int col, const int numPlacedInSection) {
     if (numPlacedInSection == 0) return;
 
-    if (col > 0)
-        y -= kCellRowSeparatorGap;
+    if (col > 0) //newline
+        y -= 26.0f;
 
-    y -= kEmoteSectionsGap;
+    y -= 26.0f;
 }
 
 class $modify(EmotePickerPopup) {
@@ -54,7 +52,7 @@ class $modify(EmotePickerPopup) {
             label->setScale(0.35f);
             label->setAnchorPoint({0.0f, 0.5f});
             label->setVisible(false);
-            label->setPosition({8.0f, kSectionOffsetsFromTop[i]});
+            label->setPosition({8.0f, -kSectionOffsetsFromTop[i]});
             label->setID(fmt::format("{}-header"_spr, header));
             this->m_scrollContentMenu->addChild(label);
 
@@ -150,12 +148,12 @@ class $modify(EmotePickerPopup) {
                 ++totalPlaced;
             }
 
-            currentYPos -= (kCellRowSeparatorGap + kEmoteSectionsGap);
+            currentYPos -= 38.0f;
             col = 0;
             numPlacedInSection = 0;
 
             if (totalPlaced == 0) //still leave a gap even if no recents.
-                currentYPos -= kEmoteSectionsGap;
+                currentYPos -= 12.0f;
         } else {
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
