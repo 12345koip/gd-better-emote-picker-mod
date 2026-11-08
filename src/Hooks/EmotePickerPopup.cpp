@@ -8,7 +8,7 @@ using namespace geode::prelude;
 //if it's not obvious, these two are ordered the same
 //so "Recents" offset is -6.0f
 constexpr std::array<const char*, 8> kSectionHeaders = {"Recents", "Ratings", "Faces", "Hands & Gestures", "Speech bubbles", "Game objects", "Reactions & Symbols", "Boomlings"};
-constexpr std::array<float, 8> kSectionOffsetsFromTop = {6.0f, 68.0f, 158.0f, 429.0f, 489.0f, 560.0f, 702.0f, 818.0f};
+constexpr std::array<float, 8> kSectionOffsetsFromTop = {6.0f, 68.0f, 158.0f, 430.0f, 495.0f, 560.0f, 701.0f, 817.0f};
 
 //genuinely the best way i could come up with to do this
 static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
@@ -30,7 +30,7 @@ static void endSection(float& y, const int col, const int numPlacedInSection) {
     if (col > 0) //newline
         y -= 26.0f;
 
-    y -= 26.0f;
+    y -= 12.0f;
 }
 
 class $modify(EmotePickerPopup) {
@@ -151,12 +151,12 @@ class $modify(EmotePickerPopup) {
             currentYPos -= 38.0f;
             col = 0;
             numPlacedInSection = 0;
-
-            if (totalPlaced == 0) //still leave a gap even if no recents.
-                currentYPos -= 12.0f;
         } else {
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
+
+            if (!isSearching) //still leave a gap even if no recents were placed.
+                currentYPos -= 12.0f;
         }
 
         //now we place the ones which match the query.
