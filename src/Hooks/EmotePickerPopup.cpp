@@ -46,7 +46,6 @@ class $modify(EmotePickerPopup) {
         std::string searchQuery;
         geode::Label* noSearchResultsLabel = nullptr;
         std::array<geode::Label*, 8> sectionTitles {};
-        bool isInited = false; //base call in init calls layoutEmoteGrid, so we gotta block it
     };
 
     bool init(CCTextInputNode* input, CCPoint position, int maxEmotes, int maxLength) {
@@ -124,8 +123,6 @@ class $modify(EmotePickerPopup) {
 
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
         this->applyWindowSize();
-
-        this->m_fields->isInited = true;
 
         return true;
     }
