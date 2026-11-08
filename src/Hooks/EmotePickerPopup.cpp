@@ -45,6 +45,7 @@ class $modify(EmotePickerPopup) {
     struct Fields {
         std::string searchQuery;
         geode::Label* noSearchResultsLabel = nullptr;
+        CCSprite* draggerIcon = nullptr;
         std::array<geode::Label*, 8> sectionTitles {};
     };
 
@@ -71,12 +72,13 @@ class $modify(EmotePickerPopup) {
         draggerIcon->setScale(0.8f);
         draggerIcon->setOpacity(125);
         draggerIcon->setID("dragger-icon"_spr);
-        draggerIcon->setColor({110, 110, 110});
+        draggerIcon->setColor({125, 125, 125});
         draggerIcon->setPosition({
             this->m_background->getPositionX() + 53.0f,
             this->m_background->getPositionY() + 61.0f
         });
         this->m_mainLayer->addChild(draggerIcon);
+        this->m_fields->draggerIcon = draggerIcon;
 
         //label for no search results
         auto* noSearchResultsLabel = geode::Label::create("No results :(", "bigFont.fnt");
@@ -211,13 +213,14 @@ class $modify(EmotePickerPopup) {
         }
     }
 
-    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override { //drag anywhere except in the scroller
-        if (!this->m_isEmotePicker)
+    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override { //dragging inside the label without messing with that class yay
+        if (!this->m_isEmotePicker) //yeah the virtual is in EditorWindowPopup but casting there is pain soooo
             return EmotePickerPopup::ccTouchBegan(touch, event);
 
-        auto touchPoint = this->m_scrollContentLayer->convertToNodeSpace(touch->getLocation());
-        CCRect touchArea {0.0f, 0.0f, this->m_scrollContentLayer->getContentWidth(), this->m_scrollContentLayer->getContentHeight()};
-        this->m_allowDraggingAnywhere = !touchArea.containsPoint(touchPoint);
+        auto icon = this->m_fields->draggerIcon;
+        auto localSpace = icon->getParent()->convertToNodeSpace(touch->getLocation());
+        this->m_allowDraggingAnywhere = icon->boundingBox().containsPoint(localSpace);
+
         return EmotePickerPopup::ccTouchBegan(touch, event);
     }
 };
