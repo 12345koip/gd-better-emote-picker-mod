@@ -13,5 +13,8 @@
 	"description": "Improves the built-in emote picker popup",
 	"dependencies": {
         "geode.node-ids": ">=1.23.3"
+    },
+    "resources": {
+        "sprites": ["resources/sprites/dragger.png"]
     }
 }

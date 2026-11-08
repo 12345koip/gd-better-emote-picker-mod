@@ -61,6 +61,18 @@ class $modify(EmotePickerPopup) {
             this->m_fields->sectionTitles[i++] = label;
         }
 
+        //this is just to show the user they can drag
+        auto draggerIcon = CCSprite::create("dragger.png"_spr);
+        draggerIcon->setScale(0.8f);
+        draggerIcon->setOpacity(125);
+        draggerIcon->setID("dragger-icon"_spr);
+        draggerIcon->setColor({110, 110, 110});
+        draggerIcon->setPosition({
+            this->m_background->getPositionX() + 53.0f,
+            this->m_background->getPositionY() + 61.0f
+        });
+        this->m_mainLayer->addChild(draggerIcon);
+
         //label for no search results
         auto* noSearchResultsLabel = geode::Label::create("No results :(", "bigFont.fnt");
         noSearchResultsLabel->setScale(0.55f);
