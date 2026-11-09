@@ -16,5 +16,6 @@
     },
     "resources": {
         "sprites": ["resources/sprites/dragger.png"]
-    }
+    },
+    "tags": ["offline", "enhancement", "interface"]
 }
