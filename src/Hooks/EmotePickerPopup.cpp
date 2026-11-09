@@ -12,7 +12,7 @@ const std::unordered_map<const char*, float> kHeaderInformation {
     {"Faces", 158.0f},
     {"Hands & Gestures", 430.0f},
     {"Speech bubbles", 495.0f},
-    {"Game objects", 560.0f},
+    {"Game objects & images", 560.0f},
     {"Reactions & Symbols", 701.0f},
     {"Boomlings", 817.0f}
 };
@@ -103,7 +103,7 @@ class $modify(EmotePickerPopup) {
         oldBg->removeFromParent();
         this->m_background = newBg;
 
-        //close button
+        //retexture close button
         auto cache = CCSpriteFrameCache::sharedSpriteFrameCache();
         if (auto frame = cache->spriteFrameByName("GJ_closeBtn_001.png")) {
             this->m_closeSprite->setDisplayFrame(frame);

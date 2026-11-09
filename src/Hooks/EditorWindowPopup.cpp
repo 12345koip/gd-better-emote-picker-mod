@@ -22,6 +22,9 @@ class $modify(EditorWindowPopup) {
         this->m_closeSprite->setPositionX(
             this->m_background->getPositionX() + (this->m_background->getContentSize().width / 2 - 1.0f)
         );
+
+        //so the emotes in the scroller don't crop over the bottom line.
+        this->m_scrollContentLayer->setPositionY(this->m_scrollContentLayer->getPositionY() + 2.0f);
     }
 
     void applyWindowSize() {
@@ -32,7 +35,9 @@ class $modify(EditorWindowPopup) {
             this->m_windowWidth,
             this->m_windowHeight - 34.0f
         });
-        typeinfo_cast<EmotePickerPopup*>(this)->layoutEmoteGrid(); //dont ask its the only thing that worked
+
+        //ugly af but i cant do a direct static_cast sadly
+        static_cast<EmotePickerPopup*>(static_cast<EditorWindowPopup*>(this))->layoutEmoteGrid();
         placeSearchBar(this);
     }
 };
