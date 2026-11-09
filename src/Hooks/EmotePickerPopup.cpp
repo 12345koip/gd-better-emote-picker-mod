@@ -1,5 +1,4 @@
 #include <Geode/Geode.hpp>
-#include <Geode/modify/EditorWindowPopup.hpp>
 #include <Geode/modify/EmotePickerPopup.hpp>
 #include "../Search/Search.hpp"
 
@@ -67,7 +66,7 @@ class $modify(EmotePickerPopup) {
             this->m_fields->sectionTitles[i++] = label;
         }
 
-        //this is just to show the user they can drag
+        //dragger area
         auto draggerIcon = CCSprite::create("dragger.png"_spr);
         draggerIcon->setScale(0.8f);
         draggerIcon->setOpacity(125);
