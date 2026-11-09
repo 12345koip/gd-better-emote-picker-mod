@@ -11,8 +11,8 @@ const std::unordered_map<const char*, float> kHeaderInformation {
     {"Faces", 158.0f},
     {"Hands & Gestures", 430.0f},
     {"Speech bubbles", 495.0f},
-    {"Game objects & images", 560.0f},
-    {"Reactions & Symbols", 701.0f},
+    {"Game objects", 560.0f},
+    {"Symbols & stats", 701.0f},
     {"Boomlings", 817.0f}
 };
 
