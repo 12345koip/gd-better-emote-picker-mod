@@ -5,14 +5,14 @@
 using namespace geode::prelude;
 
 //header against offset from top.
-const std::unordered_map<const char*, float> kHeaderInformation {
+const std::unordered_map<const char*, float> headerNameOffsetInfo {
     {"Recents", 6.0f},
     {"Ratings", 68.0f},
     {"Faces", 158.0f},
     {"Hands & Gestures", 430.0f},
     {"Speech bubbles", 495.0f},
     {"Game objects", 560.0f},
-    {"Symbols & stats", 701.0f},
+    {"Symbols & Stats", 701.0f},
     {"Boomlings", 817.0f}
 };
 
@@ -34,10 +34,11 @@ static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSectio
 static void endSection(float& y, const int col, const int numPlacedInSection) {
     if (numPlacedInSection == 0) return;
 
-    if (col > 0) //newline
-        y -= 26.0f;
-
-    y -= 12.0f;
+    //newline
+    if (col > 0) // + one emoji row if any got placed
+        y -= 38.0f;
+    else
+        y -= 12.0f;
 }
 
 class $modify(EmotePickerPopup) {
@@ -54,7 +55,7 @@ class $modify(EmotePickerPopup) {
 
         //section headers
         uint32_t i = 0;
-        for (const auto [header, offset]: kHeaderInformation) {
+        for (const auto [header, offset]: headerNameOffsetInfo) {
             auto label = geode::Label::create(header, "goldFont.fnt");
             label->setScale(0.35f);
             label->setAnchorPoint({0.0f, 0.5f});
@@ -91,8 +92,8 @@ class $modify(EmotePickerPopup) {
 
 
         //replace bg bc it looks nicer
-        auto oldBg = this->m_background;
-        auto newBg = CCScale9Sprite::create("GJ_square01.png", {0, 0, 80, 80});
+        const auto oldBg = this->m_background;
+        const auto newBg = CCScale9Sprite::create("GJ_square01.png", {0, 0, 80, 80});
         newBg->setContentSize(oldBg->getContentSize());
         newBg->setPosition(oldBg->getPosition());
         newBg->setZOrder(oldBg->getZOrder());
@@ -103,7 +104,7 @@ class $modify(EmotePickerPopup) {
         this->m_background = newBg;
 
         //retexture close button
-        auto cache = CCSpriteFrameCache::sharedSpriteFrameCache();
+        const auto cache = CCSpriteFrameCache::sharedSpriteFrameCache();
         if (auto frame = cache->spriteFrameByName("GJ_closeBtn_001.png")) {
             this->m_closeSprite->setDisplayFrame(frame);
             this->m_closeSprite->setScale(0.7f);
@@ -118,9 +119,8 @@ class $modify(EmotePickerPopup) {
             this->layoutEmoteGrid();
         });
 
-        //I know ZOrder is how touch prio is meant to work in v6. But... surprise surprise!! it doesn't. Only this does. Why? No clue!
-        auto searchBarNode = searchBar->getChildByType<CCTextInputNode>(0);
-        CCDirector::get()->getTouchDispatcher()->addTargetedDelegate(searchBarNode, -501, true);
+        //?? why is this the only thing that makes the search bar focus on click
+        CCDirector::get()->getTouchDispatcher()->addTargetedDelegate(searchBar->getInputNode(), -501, true);
 
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
         this->applyWindowSize();
@@ -128,8 +128,6 @@ class $modify(EmotePickerPopup) {
         return true;
     }
 
-    //this is basically a reimplementation of whats in the binary except we filter based on the query
-    //warning: ugly (sorry)
     void layoutEmoteGrid() {
         float currentYPos = -4.0f;
         int col = 0;
@@ -140,7 +138,9 @@ class $modify(EmotePickerPopup) {
         const bool isSearching = !searchQuery.empty();
         const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-        if (!isSearching) currentYPos -= 6.0f; //space for recents label.
+        if (!isSearching)
+            currentYPos -= 6.0f; //space for recents label.
+
 
         //all the section headers first
         //note to self: do not remove if statement. EmotePickerPopup::init calls layoutEmoteGrid
@@ -161,7 +161,7 @@ class $modify(EmotePickerPopup) {
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
 
-            if (!isSearching) //still leave a gap even if no recents were placed.
+            if (!isSearching) //still leave a gap even if no recents were placed. header would look weird otherwise
                 currentYPos -= 12.0f;
         }
 
