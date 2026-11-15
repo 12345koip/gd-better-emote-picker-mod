@@ -119,9 +119,6 @@ class $modify(EmotePickerPopup) {
             this->layoutEmoteGrid();
         });
 
-        //?? why is this the only thing that makes the search bar focus on click
-        CCDirector::get()->getTouchDispatcher()->addTargetedDelegate(searchBar->getInputNode(), -501, true);
-
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
         this->applyWindowSize();
 
