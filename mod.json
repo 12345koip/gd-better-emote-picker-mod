@@ -17,5 +17,8 @@
     "resources": {
         "sprites": ["resources/sprites/dragger.png"]
     },
-    "tags": ["offline", "enhancement", "interface"]
+    "tags": ["offline", "enhancement", "interface"],
+    "links": {
+        "source": "https://www.github.com/12345koip/gd-better-emote-picker-mod"
+    }
 }
