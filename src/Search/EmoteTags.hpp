@@ -5,6 +5,7 @@
 //because doing that would mean loads of string comparisons and well... yeah.
 //anyway. if you want to know the exact emoji each one corresponds to, just dump all the emotedef IDs and names.
 //that's what i did, anyway.
+//(the IDs are hardcoded. they don't change. it doesn't matter what order they're placed in.)
 const std::unordered_map<std::string_view, std::vector<int>> g_emoteTagsMap {
     {"face", {23, 24, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 205, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 323, 324, 327, 328, 329, 330, 331, 332, 339, 348, 349, 350, 351, 358, 359, 360, 361}},
     {"difficulty", {52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 205, 227, 228, 229, 230}},

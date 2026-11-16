@@ -4,22 +4,21 @@
 
 using namespace geode::prelude;
 
-//header against offset from top.
-const std::unordered_map<const char*, float> headerNameOffsetInfo {
-    {"Recents", 6.0f},
-    {"Ratings", 68.0f},
-    {"Faces", 158.0f},
-    {"Hands & Gestures", 430.0f},
-    {"Speech bubbles", 495.0f},
-    {"Game objects", 560.0f},
-    {"Symbols & Stats", 701.0f},
-    {"Boomlings", 817.0f}
+static constexpr std::array<const char*, 8> kHeaderNames {
+    "Recents",
+    "Ratings",
+    "Faces",
+    "Hands & Gestures",
+    "Speech bubbles",
+    "Game objects",
+    "Symbols & Stats",
+    "Boomlings"
 };
 
 
 //genuinely the best way i could come up with to do this
-static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection) {
-    if (col == 8) { //max columns, make new line
+static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection, const int maxCol) {
+    if (col >= maxCol) { //max columns, make new line
         y -= 26.0f;
         col = 0;
     }
@@ -29,6 +28,14 @@ static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSectio
 
     ++col;
     ++placedInSection;
+}
+
+static void placeSectionHeader(geode::Label* label, float& currentYPos) {
+    if (!label) return;
+
+    label->setVisible(true);
+    label->setPosition({10.0f, currentYPos - 5.0f});
+    currentYPos -= 10.0f;
 }
 
 static void endSection(float& y, const int col, const int numPlacedInSection) {
@@ -55,12 +62,11 @@ class $modify(EmotePickerPopup) {
 
         //section headers
         uint32_t i = 0;
-        for (const auto [header, offset]: headerNameOffsetInfo) {
+        for (const auto header: kHeaderNames) {
             auto label = geode::Label::create(header, "goldFont.fnt");
-            label->setScale(0.35f);
+            label->setScale(0.4f);
             label->setAnchorPoint({0.0f, 0.5f});
             label->setVisible(false);
-            label->setPosition({8.0f, -offset});
             label->setID(fmt::format("{}-header"_spr, header));
             this->m_scrollContentMenu->addChild(label);
 
@@ -120,46 +126,58 @@ class $modify(EmotePickerPopup) {
         });
 
         this->m_mainLayer->addChild(searchBar, this->m_scrollContentLayer->getZOrder());
+
+        //un-screw (not unscrew) mobile platforms
+        const auto screenSize = CCDirector::sharedDirector()->getWinSize();
+        const auto availableHeight = std::max(this->m_minHeight, screenSize.height - 48.0f);
+        const auto maxHeight = std::min(this->m_maxHeight, availableHeight);
+        this->m_windowHeight = std::clamp(190.0f, this->m_minHeight, maxHeight);
         this->applyWindowSize();
 
         return true;
     }
 
+
+
+    //a lot of this code might look funky. lost of those parts are a (possibly slightly modified)
+    //reimplementation of what's in the binary (not my fault).
+    //the rest of it is probably just me writing funky code late at night. thanks :3
     void layoutEmoteGrid() {
         float currentYPos = -4.0f;
         int col = 0;
         int numPlacedInSection = 0;
         uint32_t totalPlaced = 0;
+        uint32_t sectionIndex = 1; //skip recents label (placed separately)
+        const int maxCols = std::max(3, static_cast<int>((this->m_windowWidth - 8.0f) / 26.0f));
+
+        //if no section headers, this is the first call from the original init call in the init hook.
+        //there's only one of these calls per popup.
+        if (!this->m_fields->sectionTitles[0]) return EmotePickerPopup::layoutEmoteGrid();
+
 
         const auto& searchQuery = this->m_fields->searchQuery;
         const bool isSearching = !searchQuery.empty();
         const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-        if (!isSearching)
-            currentYPos -= 6.0f; //space for recents label.
+        for (auto* header: this->m_fields->sectionTitles)
+            header->setVisible(!isSearching);
 
+        if (isSearching) //search = hide recents.
+            for (auto* cell: this->m_recentEmoteButtons)
+                cell->setVisible(false);
+        else {
 
-        //all the section headers first
-        //note to self: do not remove if statement. EmotePickerPopup::init calls layoutEmoteGrid
-        for (auto* label: this->m_fields->sectionTitles)
-            if (label) label->setVisible(!isSearching);
+            //recents label.
+            placeSectionHeader(this->m_fields->sectionTitles[0], currentYPos);
 
-
-        if (!isSearching && !this->m_recentEmoteButtons.empty()) { //no search = show recents
             for (auto* cell: this->m_recentEmoteButtons) {
-                placeEmoteCell(cell, currentYPos, col, numPlacedInSection);
+                placeEmoteCell(cell, currentYPos, col, numPlacedInSection, maxCols);
                 ++totalPlaced;
             }
 
             currentYPos -= 38.0f;
             col = 0;
             numPlacedInSection = 0;
-        } else {
-            for (auto* cell: this->m_recentEmoteButtons)
-                cell->setVisible(false);
-
-            if (!isSearching) //still leave a gap even if no recents were placed. header would look weird otherwise
-                currentYPos -= 12.0f;
         }
 
         //now we place the ones which match the query.
@@ -167,10 +185,14 @@ class $modify(EmotePickerPopup) {
             auto def = EmoteSprite::defAtIndex(i);
             if (def->m_isAlias) continue;
 
-            if (!def->m_name) { //a section terminator.
+            if (!def->m_name) { //a section terminator
                 endSection(currentYPos, col, numPlacedInSection);
                 col = 0;
                 numPlacedInSection = 0;
+
+                placeSectionHeader(this->m_fields->sectionTitles[sectionIndex], currentYPos);
+
+                ++sectionIndex;
                 continue;
             }
 
@@ -178,16 +200,23 @@ class $modify(EmotePickerPopup) {
             if (!cell) continue;
 
             const std::string_view name = def->m_name;
-            if (isSearching && (std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end() && name.find(searchQuery) == std::string::npos))
+            if (isSearching && std::ranges::find(matchingIndices, def->m_particleIndex) == matchingIndices.end() && name.find(searchQuery) == std::string::npos) {
                 cell->setVisible(false);
-            else {
-                placeEmoteCell(cell, currentYPos, col, numPlacedInSection);
-                ++totalPlaced;
+                continue;
             }
+
+            placeEmoteCell(cell, currentYPos, col, numPlacedInSection, maxCols);
+            ++totalPlaced;
         }
 
-        if (auto label = this->m_fields->noSearchResultsLabel)
-            label->setVisible(totalPlaced == 0);
+        this->m_fields->noSearchResultsLabel->setVisible(totalPlaced == 0);
+        for (uint8_t i = 1; i < this->m_fields->sectionTitles.size(); ++i) //just doing it this way to skip the recents header.
+            this->m_fields->sectionTitles[i]->setVisible(totalPlaced != 0);
+
+
+        if (col > 0) //final emote row.
+            currentYPos -= 26.0f;
+
         this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
     }
 

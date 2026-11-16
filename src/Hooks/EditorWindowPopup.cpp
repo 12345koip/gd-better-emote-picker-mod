@@ -7,10 +7,23 @@ static void placeSearchBar(const EditorWindowPopup* popup) {
     auto bar = popup->m_mainLayer->getChildByID("search-bar"_spr);
     if (!bar) return;
 
-    const auto centre = popup->m_background->getPosition();
+    const auto centre= popup->m_background->getPosition();
     bar->setPosition({
         centre.x - 33.0f,
         centre.y + (popup->m_windowHeight / 2) - 20.0f
+    });
+}
+
+static void placeDragger(const EditorWindowPopup* popup) {
+    auto* icon = static_cast<CCSprite*>(popup->m_mainLayer->getChildByID("dragger-icon"_spr));
+    if (!icon) return; //all because of 1 (one) and only 1 (one) call before this is initialised...
+
+    auto* searchBar = static_cast<geode::TextInput*>(popup->m_mainLayer->getChildByID("search-bar"_spr));
+    const auto bounds = popup->m_background->boundingBox();
+
+    icon->setPosition({
+        bounds.getMaxX() - 59.0f,
+        searchBar->getPositionY()
     });
 }
 
@@ -39,5 +52,6 @@ class $modify(EditorWindowPopup) {
         //ugly af but i cant do a direct static_cast sadly
         static_cast<EmotePickerPopup*>(static_cast<EditorWindowPopup*>(this))->layoutEmoteGrid();
         placeSearchBar(this);
+        placeDragger(this);
     }
 };
