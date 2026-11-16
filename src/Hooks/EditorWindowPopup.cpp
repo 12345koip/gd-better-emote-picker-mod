@@ -7,7 +7,7 @@ static void placeSearchBar(const EditorWindowPopup* popup) {
     auto bar = popup->m_mainLayer->getChildByID("search-bar"_spr);
     if (!bar) return;
 
-    const auto centre= popup->m_background->getPosition();
+    const auto centre = popup->m_background->getPosition();
     bar->setPosition({
         centre.x - 33.0f,
         centre.y + (popup->m_windowHeight / 2) - 20.0f
