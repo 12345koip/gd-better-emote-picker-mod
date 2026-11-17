@@ -30,14 +30,6 @@ static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSectio
     ++placedInSection;
 }
 
-static void placeSectionHeader(geode::Label* label, float& currentYPos) {
-    if (!label) return;
-
-    label->setVisible(true);
-    label->setPosition({10.0f, currentYPos - 5.0f});
-    currentYPos -= 10.0f;
-}
-
 static void endSection(float& y, const int col, const int numPlacedInSection) {
     if (numPlacedInSection == 0) return;
 
@@ -132,6 +124,7 @@ class $modify(EmotePickerPopup) {
         const auto availableHeight = std::max(this->m_minHeight, screenSize.height - 48.0f);
         const auto maxHeight = std::min(this->m_maxHeight, availableHeight);
         this->m_windowHeight = std::clamp(190.0f, this->m_minHeight, maxHeight);
+        this->m_windowPosition = this->clampWindowOnScreen(this->m_windowPosition);
         this->applyWindowSize();
 
         return true;
@@ -150,9 +143,11 @@ class $modify(EmotePickerPopup) {
         uint32_t sectionIndex = 1; //skip recents label (placed separately)
         const int maxCols = std::max(3, static_cast<int>((this->m_windowWidth - 8.0f) / 26.0f));
 
-        //if no section headers, this is the first call from the original init call in the init hook.
-        //there's only one of these calls per popup.
-        if (!this->m_fields->sectionTitles[0]) return EmotePickerPopup::layoutEmoteGrid();
+        //there is one call per popup to this function before the modifications are applied, being from
+        //the original init. so... if no headers exist, we can just ignore it bc we'll just call
+        //this right after, still before the user sees it.
+        geode::Label* recentsLabel = this->m_fields->sectionTitles[0];
+        if (!recentsLabel) return;
 
 
         const auto& searchQuery = this->m_fields->searchQuery;
@@ -162,13 +157,15 @@ class $modify(EmotePickerPopup) {
         for (auto* header: this->m_fields->sectionTitles)
             header->setVisible(!isSearching);
 
-        if (isSearching) //search = hide recents.
+        if (isSearching || this->m_recentEmoteButtons.empty()) { //recents are also hidden during search.
+            recentsLabel->setVisible(false);
             for (auto* cell: this->m_recentEmoteButtons)
                 cell->setVisible(false);
-        else {
-
-            //recents label.
-            placeSectionHeader(this->m_fields->sectionTitles[0], currentYPos);
+        } else {
+            //place header + cells
+            recentsLabel->setVisible(true);
+            recentsLabel->setPosition({10.0f, currentYPos - 5.0f});
+            currentYPos -= 10.0f;
 
             for (auto* cell: this->m_recentEmoteButtons) {
                 placeEmoteCell(cell, currentYPos, col, numPlacedInSection, maxCols);
@@ -185,17 +182,21 @@ class $modify(EmotePickerPopup) {
             auto def = EmoteSprite::defAtIndex(i);
             if (def->m_isAlias) continue;
 
-            if (!def->m_name) { //a section terminator
+            if (!def->m_name && !isSearching) { //a section terminator
                 endSection(currentYPos, col, numPlacedInSection);
                 col = 0;
                 numPlacedInSection = 0;
 
-                placeSectionHeader(this->m_fields->sectionTitles[sectionIndex], currentYPos);
+                //place the header for the next section
+                auto* currentHeader = this->m_fields->sectionTitles[sectionIndex++];
+                currentHeader->setVisible(true);
+                currentHeader->setPosition({10.0f, currentYPos - 5.0f});
+                currentYPos -= 10.0f;
 
-                ++sectionIndex;
                 continue;
             }
 
+            //thank goodness robtop tagged them by index and not by something else stupid.
             auto cell = this->m_scrollContentMenu->getChildByTag(i);
             if (!cell) continue;
 
@@ -209,14 +210,10 @@ class $modify(EmotePickerPopup) {
             ++totalPlaced;
         }
 
-        this->m_fields->noSearchResultsLabel->setVisible(totalPlaced == 0);
-        for (uint8_t i = 1; i < this->m_fields->sectionTitles.size(); ++i) //just doing it this way to skip the recents header.
-            this->m_fields->sectionTitles[i]->setVisible(totalPlaced != 0);
-
-
         if (col > 0) //final emote row.
             currentYPos -= 26.0f;
 
+        this->m_fields->noSearchResultsLabel->setVisible(totalPlaced == 0);
         this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
     }
 
