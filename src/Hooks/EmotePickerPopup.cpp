@@ -16,7 +16,6 @@ static constexpr std::array<const char*, 8> kHeaderNames {
 };
 
 
-//genuinely the best way i could come up with to do this
 static void placeEmoteCell(CCNode* node, float& y, int& col, int& placedInSection, const int maxCol) {
     if (col >= maxCol) { //max columns, make new line
         y -= 26.0f;
@@ -139,8 +138,8 @@ class $modify(EmotePickerPopup) {
         float currentYPos = -4.0f;
         int col = 0;
         int numPlacedInSection = 0;
-        uint32_t totalPlaced = 0;
-        uint32_t sectionIndex = 1; //skip recents label (placed separately)
+        uint8_t totalPlaced = 0;
+        uint8_t sectionIndex = 1; //skip recents label (placed separately)
         const int maxCols = std::max(3, static_cast<int>((this->m_windowWidth - 8.0f) / 26.0f));
 
         //there is one call per popup to this function before the modifications are applied, being from
@@ -154,7 +153,7 @@ class $modify(EmotePickerPopup) {
         const bool isSearching = !searchQuery.empty();
         const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-        for (auto* header: this->m_fields->sectionTitles)
+        for (auto* header: this->m_fields->sectionTitles) //when searching all emotes are just bundled together
             header->setVisible(!isSearching);
 
         if (isSearching || this->m_recentEmoteButtons.empty()) { //recents are also hidden during search.
@@ -235,7 +234,8 @@ class $modify(EmotePickerPopup) {
         }
     }
 
-    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override { //dragging inside the label without messing with that class yay
+    //allows dragging inside the dragger label without having to mess with that class
+    bool ccTouchBegan(CCTouch* touch, CCEvent* event) override {
         if (!this->m_isEmotePicker) //yeah the virtual is in EditorWindowPopup but casting there is pain soooo
             return EmotePickerPopup::ccTouchBegan(touch, event);
 

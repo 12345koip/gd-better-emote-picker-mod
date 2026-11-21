@@ -33,10 +33,10 @@ class $modify(EditorWindowPopup) {
         if (!this->m_isEmotePicker) return;
 
         this->m_closeSprite->setPositionX(
-            this->m_background->getPositionX() + (this->m_background->getContentSize().width / 2 - 1.0f)
+            this->m_background->getPositionX() + (this->m_background->getContentWidth() / 2 - 1.0f)
         );
 
-        //so the emotes in the scroller don't crop over the bottom line.
+        //so the emotes in the scroller don't crop over the bottom line of the background.
         this->m_scrollContentLayer->setPositionY(this->m_scrollContentLayer->getPositionY() + 2.0f);
     }
 
