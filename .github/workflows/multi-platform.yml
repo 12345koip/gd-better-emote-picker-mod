@@ -31,7 +31,7 @@ jobs:
       - uses: geode-sdk/build-geode-mod-docker@main
         with:
           target: ${{ matrix.config.target }}
-          external-mods: external-mods
+          external-mods: ${{ github.workspace }}/external-mods
           upload: true
 
   merge:
