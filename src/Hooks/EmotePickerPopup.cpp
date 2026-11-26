@@ -263,6 +263,9 @@ class $modify(EmotePickerPopup) {
         //place all custom emotes too
         if (!isSearching && Loader::get()->isModLoaded("kx_.custom-emotes-api")) {
             for (const auto& container: CustomEmotes::ExtendedCompatability::GetAllCustomEmoteContainers()) {
+                const auto& allDefs = container->GetAllCustomEmoteDefs();
+                if (allDefs.empty()) continue;
+
                 auto* header = this->m_fields->customSectionTitles[container->GetParticleIndexBase()];
 
                 if (!container->IsEnabled()) {
@@ -276,7 +279,7 @@ class $modify(EmotePickerPopup) {
                 numPlacedInSection = 0;
                 col = 0;
 
-                for (auto* def: container->GetAllCustomEmoteDefs()) {
+                for (auto* def: allDefs) {
                     auto* cell = this->m_scrollContentMenu->getChildByTag(def->GetAbsoluteParticleIndex());
                     if (!cell) continue;
 
