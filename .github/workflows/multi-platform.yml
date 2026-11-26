@@ -1,70 +1,45 @@
+
 name: Build Geode Mod
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - "**"
 
 jobs:
   build:
+    name: Build ${{ matrix.config.target }}
+    runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         config:
-        - name: Windows
-          os: windows-latest
-
-        - name: macOS
-          os: macos-latest
-
-        - name: iOS
-          os: macos-latest
-          target: iOS
-
-        - name: Android32
-          os: ubuntu-latest
-          target: Android32
-
-        - name: Android64
-          os: ubuntu-latest
-          target: Android64
-
-    name: ${{ matrix.config.name }}
-    runs-on: ${{ matrix.config.os }}
+          - target: win
+          - target: macm1
+          - target: macintel
+          - target: ios
+          - target: android32
+          - target: android64
 
     steps:
       - uses: actions/checkout@v7
 
       - name: Download Custom Emotes API
-        shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "build/geode-deps/kx_.custom-emotes-api"
+          mkdir -p external-mods
+          curl -fL --retry 3 "https://github.com/12345koip/gd-custom-emotes-api-mod/releases/download/custom-emotes-api-v1.0.1/kx_.custom-emotes-api.geode" -o external-mods/kx_.custom-emotes-api.geode
 
-          curl.exe -L --fail --retry 3 "https://github.com/12345koip/gd-custom-emotes-api-mod/releases/download/custom-emotes-api-v1.0.1/kx_.custom-emotes-api.geode" -o dependency.geode
-
-          7z x dependency.geode -o"build/geode-deps/kx_.custom-emotes-api" -y
-
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to extract the Custom Emotes API package"
-          }
-
-      - name: Build the mod
-        uses: geode-sdk/build-geode-mod@main
+      - uses: geode-sdk/build-geode-mod-docker@main
         with:
-          combine: true
           target: ${{ matrix.config.target }}
+          external-mods: external-mods
+          upload: true
 
-  package:
-    name: Package builds
+  merge:
+    name: Merge
     runs-on: ubuntu-latest
     needs: ['build']
 
     steps:
-      - uses: geode-sdk/build-geode-mod/combine@main
-        id: build
-
-      - uses: actions/upload-artifact@v7
+      - uses: geode-sdk/build-geode-mod-docker/merge@main
         with:
-          name: Build Output
-          path: ${{ steps.build.outputs.build-output }}
+          upload: true
