@@ -1,6 +1,9 @@
 #include "Search.hpp"
 #include "EmoteTags.hpp"
+#include <Geode/Geode.hpp>
+#include <kx_.custom-emotes-api/ExtendedCompatability.hpp>
 
+using namespace geode::prelude;
 using namespace BetterEmotePicker;
 
 std::vector<int> Search::GetMatchingEmoteIndicesForSearchQuery(const std::string_view searchQuery) {

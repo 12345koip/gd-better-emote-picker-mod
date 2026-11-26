@@ -1,5 +1,6 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/EmotePickerPopup.hpp>
+#include <kx_.custom-emotes-api/ExtendedCompatability.hpp>
 #include "../Search/Search.hpp"
 
 using namespace geode::prelude;
@@ -44,8 +45,15 @@ class $modify(EmotePickerPopup) {
         std::string searchQuery;
         geode::Label* noSearchResultsLabel = nullptr;
         CCSprite* draggerIcon = nullptr;
-        std::array<geode::Label*, 8> sectionTitles {};
+        std::array<geode::Label*, 8> vanillaSectionTitles {};
+        std::map<int, geode::Label*> customSectionTitles {}; //for custom emotes API, container base against header.
     };
+
+    static void onModify(auto& self) {
+        if (!self.setHookPriorityPre("EmotePickerPopup::layoutEmoteGrid", Priority::Replace))
+            log::warn("could not set hook priority for EmotePickerPopup::layoutEmoteGrid");
+    }
+
 
     bool init(CCTextInputNode* input, CCPoint position, int maxEmotes, int maxLength) {
         if (!EmotePickerPopup::init(input, position, maxEmotes, maxLength))
@@ -61,7 +69,22 @@ class $modify(EmotePickerPopup) {
             label->setID(fmt::format("{}-header"_spr, header));
             this->m_scrollContentMenu->addChild(label);
 
-            this->m_fields->sectionTitles[i++] = label;
+            this->m_fields->vanillaSectionTitles[i++] = label;
+        }
+
+        //custom emotes.
+        if (Loader::get()->isModLoaded("kx_.custom-emotes-api")) {
+            for (const auto& container: CustomEmotes::ExtendedCompatability::GetAllCustomEmoteContainers()) {
+                const auto name = container->GetName();
+
+                auto label = geode::Label::create(name.data(), "goldFont.fnt");
+                label->setScale(0.4f);
+                label->setAnchorPoint({0.0f, 0.5f});
+                label->setVisible(false);
+                label->setID(fmt::format("{}-header-custom"_spr, name));
+                this->m_scrollContentMenu->addChild(label);
+                this->m_fields->customSectionTitles[container->GetParticleIndexBase()] = label;
+            }
         }
 
         //dragger area
@@ -135,6 +158,8 @@ class $modify(EmotePickerPopup) {
     //reimplementation of what's in the binary (not my fault).
     //the rest of it is probably just me writing funky code late at night. thanks :3
     void layoutEmoteGrid() {
+        const bool customEmotesAPIIsLoaded = Loader::get()->isModLoaded("kx_.custom-emotes-api");
+
         float currentYPos = -4.0f;
         int col = 0;
         int numPlacedInSection = 0;
@@ -145,7 +170,7 @@ class $modify(EmotePickerPopup) {
         //there is one call per popup to this function before the modifications are applied, being from
         //the original init. so... if no headers exist, we can just ignore it bc we'll just call
         //this right after, still before the user sees it.
-        geode::Label* recentsLabel = this->m_fields->sectionTitles[0];
+        geode::Label* recentsLabel = this->m_fields->vanillaSectionTitles[0];
         if (!recentsLabel) return;
 
 
@@ -153,7 +178,7 @@ class $modify(EmotePickerPopup) {
         const bool isSearching = !searchQuery.empty();
         const auto matchingIndices = BetterEmotePicker::Search::GetMatchingEmoteIndicesForSearchQuery(searchQuery);
 
-        for (auto* header: this->m_fields->sectionTitles) //when searching all emotes are just bundled together
+        for (auto* header: this->m_fields->vanillaSectionTitles) //when searching all emotes are just bundled together
             header->setVisible(!isSearching);
 
         if (isSearching || this->m_recentEmoteButtons.empty()) { //recents are also hidden during search.
@@ -187,7 +212,7 @@ class $modify(EmotePickerPopup) {
                 numPlacedInSection = 0;
 
                 //place the header for the next section
-                auto* currentHeader = this->m_fields->sectionTitles[sectionIndex++];
+                auto* currentHeader = this->m_fields->vanillaSectionTitles[sectionIndex++];
                 currentHeader->setVisible(true);
                 currentHeader->setPosition({10.0f, currentYPos - 5.0f});
                 currentYPos -= 10.0f;
@@ -196,7 +221,7 @@ class $modify(EmotePickerPopup) {
             }
 
             //thank goodness robtop tagged them by index and not by something else stupid.
-            auto cell = this->m_scrollContentMenu->getChildByTag(i);
+            auto* cell = this->m_scrollContentMenu->getChildByTag(i);
             if (!cell) continue;
 
             const std::string_view name = def->m_name;
@@ -209,8 +234,60 @@ class $modify(EmotePickerPopup) {
             ++totalPlaced;
         }
 
-        if (col > 0) //final emote row.
-            currentYPos -= 26.0f;
+        //place matching custom emotes.
+        if (isSearching && customEmotesAPIIsLoaded) {
+            for (const auto& container: CustomEmotes::ExtendedCompatability::GetAllCustomEmoteContainers()) {
+                if (!container->IsEnabled()) continue;
+
+                for (const auto* def: container->GetAllCustomEmoteDefs()) {
+                    if (!def->IsEnabled()) continue;
+
+                    const std::string_view name = def->GetEmoteDef()->m_name;
+                    auto* cell = this->m_scrollContentMenu->getChildByTag(def->GetAbsoluteParticleIndex());
+                    log::debug("checking emote {} against search query {}", name, searchQuery);
+
+                    if (name.find(searchQuery) != std::string::npos && cell) {
+                        placeEmoteCell(cell, currentYPos, col, numPlacedInSection, maxCols);
+                        ++totalPlaced;
+                    } else if (cell)
+                        cell->setVisible(false);
+                }
+            }
+        }
+
+
+
+        endSection(currentYPos, col, numPlacedInSection); //end of last vanilla section.
+
+
+        //place all custom emotes too
+        if (!isSearching && Loader::get()->isModLoaded("kx_.custom-emotes-api")) {
+            for (const auto& container: CustomEmotes::ExtendedCompatability::GetAllCustomEmoteContainers()) {
+                auto* header = this->m_fields->customSectionTitles[container->GetParticleIndexBase()];
+
+                if (!container->IsEnabled()) {
+                    header->setVisible(false);
+                    continue;
+                }
+
+                header->setVisible(true);
+                header->setPosition({10.0f, currentYPos - 5.0f});
+                currentYPos -= 10.0f;
+                numPlacedInSection = 0;
+                col = 0;
+
+                for (auto* def: container->GetAllCustomEmoteDefs()) {
+                    auto* cell = this->m_scrollContentMenu->getChildByTag(def->GetAbsoluteParticleIndex());
+                    if (!cell) continue;
+
+                    placeEmoteCell(cell, currentYPos, col, numPlacedInSection, maxCols);
+                }
+
+                endSection(currentYPos, col, numPlacedInSection);
+            }
+        }
+
+
 
         this->m_fields->noSearchResultsLabel->setVisible(totalPlaced == 0);
         this->m_scrollContentLayer->setContentHeight(5.0f - currentYPos);
