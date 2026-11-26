@@ -25,13 +25,13 @@ jobs:
 
       - name: Download Custom Emotes API
         run: |
-          mkdir -p external-mods
-          curl -fL --retry 3 "https://github.com/12345koip/gd-custom-emotes-api-mod/releases/download/custom-emotes-api-v1.0.1/kx_.custom-emotes-api.geode" -o external-mods/kx_.custom-emotes-api.geode
+          mkdir -p ./external-mods
+          curl -fL --retry 3 "https://github.com/12345koip/gd-custom-emotes-api-mod/releases/download/custom-emotes-api-v1.0.1/kx_.custom-emotes-api.geode" -o ./external-mods/kx_.custom-emotes-api.geode
 
       - uses: geode-sdk/build-geode-mod-docker@main
         with:
           target: ${{ matrix.config.target }}
-          external-mods: ${{ github.workspace }}/external-mods
+          external-mods: ./external-mods
           upload: true
 
   merge:
