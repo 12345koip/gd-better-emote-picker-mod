@@ -36,6 +36,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Download Custom Emotes API
+        run: |
+          mkdir -p build/geode-deps
+
+          curl -L --fail --retry 3 \
+            "https://github.com/12345koip/gd-custom-emotes-api-mod/releases/download/v1.0.1/kx_.custom-emotes-api.geode" \
+            -o dependency.geode
+
+          unzip -o dependency.geode \
+            -d build/geode-deps/kx_.custom-emotes-api
+
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
